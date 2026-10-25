@@ -48,17 +48,17 @@ mkdir -p dist
 hdiutil convert "$RW_DMG" -format UDZO -o "$DMG" -ov
 hdiutil verify "$DMG"
 
-# Подпись самого образа (для нотаризации) — если задан сертификат.
-if [ -n "${SIGN_IDENTITY:-}" ]; then
-    codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
-    codesign --verify --verbose=2 "$DMG"
-fi
-
 # Иконка самого файла .dmg (видна до монтирования) — если есть fileicon (brew install fileicon).
 if command -v fileicon >/dev/null 2>&1; then
     fileicon set "$DMG" "$ICNS"
 else
     echo "fileicon не найден — у файла .dmg будет стандартная иконка" >&2
+fi
+
+# Подпись образа (для нотаризации) — последним шагом, после иконки файла.
+if [ -n "${SIGN_IDENTITY:-}" ]; then
+    codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
+    codesign --verify --verbose=2 "$DMG"
 fi
 
 echo "OK: $DMG"
