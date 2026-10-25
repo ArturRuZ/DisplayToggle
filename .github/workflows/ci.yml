@@ -1,0 +1,25 @@
+name: CI
+
+# Тесты и пробная сборка .app на каждый push/PR в main.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests
+        run: swift test
+
+      - name: Build .app
+        run: bash scripts/build_app.sh "0.0.0-ci"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DisplayToggle.app
+          path: dist/DisplayToggle.app

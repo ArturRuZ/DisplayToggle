@@ -1,0 +1,47 @@
+name: Release
+
+# Сборка DisplayToggle.app + .dmg на macOS-раннере по тегу vX.Y.Z
+# и публикация .dmg во вкладку Releases. Версия берётся из тега.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run tests
+        run: swift test
+
+      - name: Install fileicon
+        run: brew install fileicon
+
+      - name: Build .app
+        run: bash scripts/build_app.sh "${GITHUB_REF_NAME#v}"
+
+      - name: Package .dmg
+        run: bash scripts/build_dmg.sh "${GITHUB_REF_NAME#v}"
+
+      - name: Extract tag message
+        run: |
+          # actions/checkout подменяет аннотированный тег легковесным (checkout#290) —
+          # без force-fetch в заметки релиза утёк бы текст коммита вместо текста тега
+          git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > /tmp/relnotes.md
+          cat /tmp/relnotes.md
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.dmg
+          generate_release_notes: true
+          body_path: /tmp/relnotes.md

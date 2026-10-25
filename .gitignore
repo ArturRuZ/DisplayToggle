@@ -1,0 +1,7 @@
+.build/
+.swiftpm/
+dist/
+*.dmg
+*.iconset/
+.DS_Store
+xcuserdata/
