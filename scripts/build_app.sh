@@ -1,6 +1,8 @@
 #!/bin/bash
 # Собирает dist/DisplayToggle.app (universal: arm64 + x86_64), подписывает ad-hoc.
 # Параметр — версия (default 1.1.0). --install — ещё и поставить в ~/Applications.
+# SIGN_IDENTITY="Developer ID Application" — подписать сертификатом с hardened runtime
+# (нужно для нотаризации); без переменной — ad-hoc подпись.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -37,9 +39,12 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </dict></plist>
 PLIST
 
-# Подписи Apple Developer нет — ad-hoc, чтобы работали SMAppService и Gatekeeper-исключение.
-codesign --force --sign - "$APP"
-codesign --verify "$APP"
+if [ -n "${SIGN_IDENTITY:-}" ]; then
+    codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP"
+else
+    codesign --force --sign - "$APP"
+fi
+codesign --verify --strict --verbose=2 "$APP"
 lipo -info "$APP/Contents/MacOS/DisplayToggle"
 echo "OK: $APP ($VERSION)"
 

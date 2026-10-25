@@ -2,6 +2,8 @@ name: Release
 
 # Сборка DisplayToggle.app + .dmg на macOS-раннере по тегу vX.Y.Z
 # и публикация .dmg во вкладку Releases. Версия берётся из тега.
+# Если в секретах репозитория есть сертификат Developer ID и данные Apple ID —
+# .app и .dmg подписываются и нотаризуются; без них — ad-hoc сборка.
 
 on:
   push:
@@ -14,6 +16,12 @@ permissions:
 jobs:
   build-release:
     runs-on: macos-15
+    env:
+      MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+      MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,11 +33,30 @@ jobs:
       - name: Install fileicon
         run: brew install fileicon
 
+      - name: Import Developer ID certificate
+        if: env.MACOS_CERT_P12 != ''
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -P "$MACOS_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          echo "SIGN_IDENTITY=Developer ID Application" >> "$GITHUB_ENV"
+
       - name: Build .app
         run: bash scripts/build_app.sh "${GITHUB_REF_NAME#v}"
 
       - name: Package .dmg
         run: bash scripts/build_dmg.sh "${GITHUB_REF_NAME#v}"
+
+      - name: Notarize .dmg
+        if: env.SIGN_IDENTITY != '' && env.APPLE_APP_PASSWORD != ''
+        run: bash scripts/notarize.sh "dist/DisplayToggle-${GITHUB_REF_NAME#v}.dmg"
 
       - name: Extract tag message
         run: |
