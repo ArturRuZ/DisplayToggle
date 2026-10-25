@@ -58,7 +58,7 @@ export SIGN_IDENTITY="Developer ID Application" NOTARY_PROFILE=notary
 scripts/build_app.sh 1.1.0 && scripts/build_dmg.sh 1.1.0 && scripts/notarize.sh dist/DisplayToggle-1.1.0.dmg
 ```
 
-The release workflow does the same when these repository secrets are set (otherwise it publishes an ad-hoc build):
+The release workflow does the same when these repository secrets are set (without them it only builds as a check and publishes nothing):
 
 | Secret | Value |
 |---|---|
@@ -148,7 +148,7 @@ export SIGN_IDENTITY="Developer ID Application" NOTARY_PROFILE=notary
 scripts/build_app.sh 1.1.0 && scripts/build_dmg.sh 1.1.0 && scripts/notarize.sh dist/DisplayToggle-1.1.0.dmg
 ```
 
-Релизный workflow делает то же самое, если в репозитории заданы секреты (иначе публикует ad-hoc сборку):
+Релизный workflow делает то же самое, если в репозитории заданы секреты (без них только собирает для проверки и ничего не публикует):
 
 | Секрет | Значение |
 |---|---|

@@ -2,8 +2,9 @@ name: Release
 
 # Сборка DisplayToggle.app + .dmg на macOS-раннере по тегу vX.Y.Z
 # и публикация .dmg во вкладку Releases. Версия берётся из тега.
-# Если в секретах репозитория есть сертификат Developer ID и данные Apple ID —
-# .app и .dmg подписываются и нотаризуются; без них — ad-hoc сборка.
+# Публикуется только подписанный и нотаризованный .dmg: без секретов с сертификатом
+# Developer ID и данными Apple ID сборка выполняется как проверка, но в Releases
+# ничего не попадает (чтобы не затереть вручную выложенный нотаризованный .dmg).
 
 on:
   push:
@@ -58,7 +59,12 @@ jobs:
         if: env.SIGN_IDENTITY != '' && env.APPLE_APP_PASSWORD != ''
         run: bash scripts/notarize.sh "dist/DisplayToggle-${GITHUB_REF_NAME#v}.dmg"
 
+      - name: Skip publishing without signing secrets
+        if: env.MACOS_CERT_P12 == '' || env.APPLE_APP_PASSWORD == ''
+        run: echo "::warning::Нет секретов подписи/нотаризации — релиз не публикуется (см. README → Signing & notarization)"
+
       - name: Extract tag message
+        if: env.MACOS_CERT_P12 != '' && env.APPLE_APP_PASSWORD != ''
         run: |
           # actions/checkout подменяет аннотированный тег легковесным (checkout#290) —
           # без force-fetch в заметки релиза утёк бы текст коммита вместо текста тега
@@ -67,6 +73,7 @@ jobs:
           cat /tmp/relnotes.md
 
       - name: Publish release
+        if: env.MACOS_CERT_P12 != '' && env.APPLE_APP_PASSWORD != ''
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.dmg
